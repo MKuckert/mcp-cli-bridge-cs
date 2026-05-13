@@ -1,16 +1,20 @@
+using System.Collections.Concurrent;
 using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
 using Szechuan.McpCliBridge.Server;
 
 var dirOption = new Option<string>(
     name: "--dir",
-    description: "The target working directory (CWD) where tools will be executed.") { IsRequired = true };
+    description: "The target working directory (CWD) where tools will be executed.")
+{ IsRequired = true };
 
 var scriptsOption = new Option<string>(
     name: "--scripts",
-    description: "The folder containing .csx tool definitions.") { IsRequired = true };
+    description: "The folder containing .csx tool definitions.")
+{ IsRequired = true };
 
 var watchOption = new Option<bool>(
     name: "--watch",
@@ -42,7 +46,7 @@ rootCommand.SetHandler(async (dir, scripts, watch, ip, port) =>
     // 1. Discovery
     var absoluteScriptsPath = Path.GetFullPath(scripts);
     var absoluteTargetPath = Path.GetFullPath(dir);
-    
+
     var registry = new ToolRegistry(absoluteScriptsPath, absoluteTargetPath, builder.Logging.CreateLogger<ToolRegistry>());
     await registry.DiscoverToolsAsync();
 
@@ -51,14 +55,14 @@ rootCommand.SetHandler(async (dir, scripts, watch, ip, port) =>
 
     builder.Services.AddSingleton(registry);
     builder.Services.AddMcpServer()
-        .WithStdioServerTransport()
-        .WithToolHandler<DynamicMcpServer>();
+        .WithStdioServerTransport();
+    //.WithToolHandler<DynamicMcpServer>();
 
     var host = builder.Build();
-    
+
     if (watch)
     {
-        StartWatcher(registry, absoluteScriptsPath, host.Services.GetRequiredService<ILogger<ToolRegistry>>());
+        StartWatcher(registry, absoluteScriptsPath, host.Services.GetRequiredService<ILogger<ToolRegistry>>(), host.Services.GetRequiredService<IMcpServer>());
     }
 
     await host.RunAsync();
@@ -66,19 +70,20 @@ rootCommand.SetHandler(async (dir, scripts, watch, ip, port) =>
 
 await rootCommand.InvokeAsync(args);
 
-void StartWatcher(ToolRegistry registry, string path, ILogger logger)
+void StartWatcher(ToolRegistry registry, string path, ILogger logger, IMcpServer server)
 {
     var watcher = new FileSystemWatcher(path, "*.csx");
-    var timer = new Dictionary<string, Timer>();
+    var timer = new ConcurrentDictionary<string, Timer>();
 
     watcher.Changed += (s, e) => Debounce(e.FullPath);
     watcher.Created += (s, e) => Debounce(e.FullPath);
-    watcher.Deleted += (s, e) => 
+    watcher.Deleted += (s, e) =>
     {
-        // Simple registry doesn't support easy removal by path yet, 
-        // but re-discovery would handle it if we cleared or if we use FilePath as key.
-        // For now, let's just log.
-        logger.LogInformation("File deleted: {Path}. Registry update not fully implemented for deletions.", e.FullPath);
+        registry.RemoveTool(e.FullPath);
+        _ = server.SendNotificationAsync(new ModelContextProtocol.Types.Notification
+        {
+            Method = "notifications/tools/list_changed"
+        });
     };
 
     watcher.EnableRaisingEvents = true;
@@ -94,8 +99,13 @@ void StartWatcher(ToolRegistry registry, string path, ILogger logger)
         timer[filePath] = new Timer(async _ =>
         {
             logger.LogInformation("File changed, reloading: {Path}", filePath);
-            await registry.LoadToolAsync(filePath);
-            // Note: In a real implementation, we should also send notifications/tools/list_changed
+            if (await registry.LoadToolAsync(filePath))
+            {
+                await server.SendNotificationAsync(new ModelContextProtocol.Types.Notification
+                {
+                    Method = "notifications/tools/list_changed"
+                });
+            }
         }, null, 500, Timeout.Infinite);
     }
 }

@@ -35,10 +35,29 @@ public class McpScriptHost
     public void Name(string name) => ToolName = name;
     public void Description(string desc) => ToolDescription = desc;
 
+    public McpScriptHost Clone()
+    {
+        var clone = new McpScriptHost
+        {
+            ToolName = ToolName,
+            ToolDescription = ToolDescription,
+            ExecutionLogic = ExecutionLogic,
+            TargetWorkDir = TargetWorkDir
+        };
+        foreach (var p in Parameters)
+        {
+            clone.Param(p.Name, p.DefaultValue, p.Description);
+        }
+        return clone;
+    }
+
     public ParamValue<T> Param<T>(string name, T defaultValue, string description)
     {
         var p = new McpParameter(name, typeof(T), defaultValue!, description);
-        Parameters.Add(p);
+        if (!Parameters.Any(existing => existing.Name == name))
+        {
+            Parameters.Add(p);
+        }
         var pv = new ParamValue<T>(p);
         _paramValues[name] = pv;
         return pv;

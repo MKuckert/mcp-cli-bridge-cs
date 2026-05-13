@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.Extensions.Logging;
+using CliWrap;
 
 namespace Szechuan.McpCliBridge.Server;
 
@@ -60,7 +61,8 @@ public class ToolRegistry
             var container = new McpToolContainer
             {
                 Host = host,
-                CompiledScriptState = state
+                CompiledScriptState = state,
+                FilePath = filePath
             };
 
             _tools[host.ToolName] = container;
@@ -78,5 +80,15 @@ public class ToolRegistry
     {
         _tools.TryGetValue(name, out var container);
         return container;
+    }
+
+    public void RemoveTool(string filePath)
+    {
+        var toolToRemove = _tools.FirstOrDefault(t => t.Value.FilePath == filePath);
+        if (toolToRemove.Key != null)
+        {
+            _tools.TryRemove(toolToRemove.Key, out _);
+            _logger.LogInformation("Removed tool: {ToolName} (file deleted: {FilePath})", toolToRemove.Key, filePath);
+        }
     }
 }

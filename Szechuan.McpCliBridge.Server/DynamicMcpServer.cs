@@ -2,11 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
-using ModelContextProtocol.Server;
 
 namespace Szechuan.McpCliBridge.Server;
 
-public class DynamicMcpServer : IToolHandler
+public class DynamicMcpServer //: IToolHandler
 {
     private readonly ToolRegistry _registry;
     private readonly ILogger<DynamicMcpServer> _logger;
@@ -41,28 +40,31 @@ public class DynamicMcpServer : IToolHandler
             };
         }
 
+        // Clone host to ensure thread-safety for parameters
+        var localHost = container.Host.Clone();
+
         try
         {
             // Inject parameters
             if (arguments != null)
             {
-                foreach (var param in container.Host.Parameters)
+                foreach (var param in localHost.Parameters)
                 {
                     if (arguments.TryGetPropertyValue(param.Name, out var node) && node != null)
                     {
                         var value = node.Deserialize(param.Type);
                         if (value == null && param.Type == typeof(string)) value = string.Empty;
-                        container.Host.SetParamValue(param.Name, value);
+                        localHost.SetParamValue(param.Name, value);
                     }
                 }
             }
 
-            if (container.Host.ExecutionLogic == null)
+            if (localHost.ExecutionLogic == null)
             {
                 throw new InvalidOperationException("No execution logic defined for tool.");
             }
 
-            var result = await container.Host.ExecutionLogic();
+            var result = await localHost.ExecutionLogic();
             return new CallToolResult
             {
                 Content = { new TextContent { Text = result } }
@@ -78,7 +80,6 @@ public class DynamicMcpServer : IToolHandler
             };
         }
     }
-
 
     private JsonObject GenerateSchema(McpScriptHost host)
     {

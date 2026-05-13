@@ -23,7 +23,7 @@ The server application must handle the following command-line arguments:
 
 ## 3. Core Architecture & Interfaces
 
-[/] ### A. The Script Host (`McpScriptHost.cs`)
+[x] ### A. The Script Host (`McpScriptHost.cs`)
 
 The "Globals" object injected into the Roslyn scripting environment. It defines the DSL.
 
@@ -56,7 +56,7 @@ public class McpScriptHost {
 
 ```
 
-[/] ### B. Tool Registry & Container
+[x] ### B. Tool Registry & Container
 
 Encapsulates a loaded tool and its compiled state.
 
@@ -75,27 +75,27 @@ public class McpToolContainer {
 
 ## 4. Technical Phases
 
-[/] ### Phase 1: Discovery Engine
+[x] ### Phase 1: Discovery Engine
 
 * **File Scanning:** Identify all `*.csx` files in the script directory.
 * **Discovery Execution:** Use `CSharpScript.RunAsync(code, globals: host)` to execute the script once.
 * **Validation:** A script is only registered as a tool if `Name()` and `OnExecute()` were successfully called during the discovery run.
 * **Isolation:** If a script fails to compile or run during discovery, catch the exception, log it to `Console.Error`, and skip the file.
 
-[/] ### Phase 2: Runtime Execution
+[x] ### Phase 2: Runtime Execution
 
 * **Mapping:** When a `tools/call` request arrives, locate the `McpToolContainer` by name.
 * **Parameter Injection:** Update the `Value` properties of the `ParamValue<T>` objects inside the host using the arguments provided by the LLM.
 * **Execution:** Invoke the `ExecutionLogic` delegate.
 * **Error Handling:** Catch runtime exceptions. Return them to the MCP client with `isError: true` and include the stack trace for LLM troubleshooting.
 
-[/] ### Phase 3: Hot-Reloading (Optional `--watch`)
+[x] ### Phase 3: Hot-Reloading (Optional `--watch`)
 
 * **Watcher:** Implement `FileSystemWatcher` on the script directory.
 * **Debouncing:** Use a `System.Threading.Timer` (500ms delay) to prevent multiple triggers from rapid file-saves.
 * **Updates:** On change, re-run the Discovery phase for the specific file. If successful, update the registry and send a `notifications/tools/list_changed` notification to the MCP client.
 
-[/] ### Phase 4: CLI Integration
+[x] ### Phase 4: CLI Integration
 
 * **CliWrap:** Use `CliWrap` for all shell executions to ensure safety and avoid command injection.
 * **Streaming:** Implement `IProgress<string>` within the tool methods. Use it to send real-time `stdout` lines as MCP progress notifications to the client UI.
