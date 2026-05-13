@@ -1,8 +1,7 @@
 ---
 description: "Software developer implementing a PLAN.md"
 mode: primary
-model: github-copilot/gemini-3-flash-preview
-effort: medium
+model: github-copilot/claude-haiku-4.5
 permission:
   fsrw_*: allow
 color: "#00AA00"

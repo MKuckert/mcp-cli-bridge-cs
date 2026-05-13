@@ -1,8 +1,7 @@
 ---
 description: "Commits changes to git"
 mode: subagent
-model: github-copilot/gemini-3-flash-preview
-effort: low
+model: github-copilot/claude-haiku-4.5
 permission:
   fsro_*: allow
   git_*: allow

@@ -2,7 +2,6 @@
 description: "Reviews the work of Planner and Builder"
 mode: subagent
 model: github-copilot/gemini-3.1-pro-preview
-effort: high
 permission:
   fsro_*: allow
 steps: 10

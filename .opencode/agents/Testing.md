@@ -1,8 +1,7 @@
 ---
 description: "You are an agent used to test the agent harness"
 mode: primary
-model: github-copilot/gemini-3-flash-preview
-effort: low
+model: github-copilot/claude-haiku-4.5
 permission:
   fsrw_*: allow
   git_*: allow

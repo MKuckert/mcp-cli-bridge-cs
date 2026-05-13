@@ -2,7 +2,6 @@
 description: "Evolves the agent harness"
 mode: primary
 model: github-copilot/gemini-3.1-pro-preview
-effort: low
 permission:
   fsrw_*: allow
   git_*: allow

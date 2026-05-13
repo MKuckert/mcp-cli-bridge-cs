@@ -2,7 +2,6 @@
 description: "Strategic software architect creating a PLAN.md"
 mode: primary
 model: github-copilot/gemini-3.1-pro-preview
-effort: high
 permission:
   fsrw_*: allow
 color: "#DD0000"

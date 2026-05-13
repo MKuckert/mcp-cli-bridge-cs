@@ -2,7 +2,6 @@
 description: "Reworks the agent harness"
 mode: primary
 model: github-copilot/gemini-3.1-pro-preview
-effort: high
 permission:
   fsrw_*: allow
   git_*: allow
