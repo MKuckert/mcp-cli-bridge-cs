@@ -1,7 +1,7 @@
 ---
 description: "Software developer implementing a PLAN.md"
 mode: primary
-model: github-copilot/gemini-3-flash-preview
+model: github-copilot/claude-haiku-4.5
 effort: medium
 permission:
   fsrw_*: allow
