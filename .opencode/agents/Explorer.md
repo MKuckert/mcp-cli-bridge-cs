@@ -2,7 +2,6 @@
 description: "Provides read access to the local code"
 mode: subagent
 model: github-copilot/claude-haiku-4.5
-effort: low
 permission:
   fsro_*: allow
 steps: 10

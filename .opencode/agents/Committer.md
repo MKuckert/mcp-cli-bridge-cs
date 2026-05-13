@@ -2,7 +2,6 @@
 description: "Commits changes to git"
 mode: subagent
 model: github-copilot/claude-haiku-4.5
-effort: low
 permission:
   fsro_*: allow
   git_*: allow
