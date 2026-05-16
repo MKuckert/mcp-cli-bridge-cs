@@ -1,126 +1,62 @@
-# PLAN.md: MCP CLI-Bridge Implementation
+# Project Plan: MCP CLI-Bridge
 
-## 1. Project Overview
+## 🎯 Objective
+Create an MCP (Model Context Protocol) server that dynamically loads C# scripts (`.csx`), exposing them as structured tools to LLMs. It executes CLI programs within a specific target directory, supports hot-reloading for live script updates, and ensures robust parameter mapping and safety mechanisms.
 
-The **MCP CLI-Bridge** is an MCP (Model Context Protocol) server designed to dynamically load C# scripts (`.csx`) and expose them as structured tools to LLMs. It allows controlled execution of CLI programs within a specific target directory, supporting hot-reloading and robust parameter mapping.
+## 🛠 Requirements & Decisions
+- **Frameworks:** .NET (latest), Roslyn (`Microsoft.CodeAnalysis.CSharp.Scripting`), `CliWrap`
+- **Chosen Libraries:** `System.CommandLine` (CLI Parsing), `ModelContextProtocol` (Official C# SDK)
+- **Error Handling Strategy:** 
+  - Broken `.csx` scripts on startup: Halt the boot process immediately with a fatal error.
+  - Broken `.csx` scripts during hot-reload: Reject the update, maintain the last known good state of the tool, and log a loud warning with the compilation error. Tools must never magically vanish.
+  - CLI processes (`RunShell`) that timeout are forcefully killed (process tree); the task returns an error indicating the timeout.
+  - CLI processes returning non-zero exit codes: The standard error (STDERR) and the non-zero exit code are captured and returned directly to the MCP client as an error payload (no silent failures).
+  - A missing or unreadable target directory (`--dir`) causes an immediate fatal error and process exit.
+  - Concurrent execution during hot-reloading: Existing executions are allowed to finish.
 
-## 2. CLI Interface & Execution Flow
+## 🏛 Architecture & Design Guidelines
+- **CLI Layer:** Use `System.CommandLine` with `CliRootCommand` (fluent API) to parse arguments. Set the exit code via the `InvocationContext`.
+- **Orchestration Layer:** A `ScriptOrchestrator` should bridge CLI parsing, script discovery, Roslyn initialization, and MCP Server setup.
+- **State Management:** Keep a single `ScriptState<T>` for the execution session using a custom `ScriptContext` (which acts as the globals). Remember that `ScriptState` is not thread-safe.
+- **MCP Integration:** Register request handlers (`tools/list`, `tools/call`) *before* calling `server.Start(transport)`. The server transport blocks on `Start()`. 
 
-The server application must handle the following command-line arguments:
+## 🏗 Implementation Steps
+> Status Markers: [ ] Open, [/] In Progress, [x] Completed (By the Reviewer only!)
 
-* `--dir <path>`: The target working directory (CWD) where tools will be executed.
-* `--scripts <path>`: The folder containing `.csx` tool definitions.
-* `--watch`: (Flag) Enables a `FileSystemWatcher` for live tool updates.
-* `--ip <address>`: Host binding for http transport mode (Default: `127.0.0.1`).
-* `--port <number>`: Port for http transport mode (Default: `5000`).
+- [ ] **Task 1: Core Domain & Script Context**
+  - **Description:** Implement `McpScriptHost` (the globals object / context), `McpToolContainer`, and `McpParameter`. These form the Roslyn globals DSL (`Name()`, `Description()`, `Param()`, `OnExecute()`). Ensure `ScriptContext` exposes the required APIs for the orchestrator.
+  - **Review Criteria:** Models compile successfully and allow defining all required script metadata cleanly.
+- [ ] **Task 2: CLI Bootstrapping & Directory Validation**
+  - **Description:** Integrate `System.CommandLine` to parse `--dir`, `--scripts`, and `--watch`. Implement validation to exit immediately if `--dir` is missing/unreadable. Set process CWD.
+  - **Review Criteria:** CLI runs, parses arguments correctly, and fails fast if the target directory is invalid.
+- [ ] **Task 3: Script Discovery Engine & Orchestrator**
+  - **Description:** Implement the `ScriptDiscoverer` and `ScriptOrchestrator` to scan the `--scripts` folder. Compile and execute `*.csx` files via `CSharpScript.RunAsync` into a `ScriptState`. Fail loud and halt startup if any script fails to compile.
+  - **Review Criteria:** Valid scripts are discovered and transformed into `McpToolContainer`s; invalid scripts halt the boot process.
+- [ ] **Task 4: MCP Server Integration**
+  - **Description:** Implement the `ModelContextProtocol` server in the orchestrator. Configure Stdio transport. Map `McpToolContainer` metadata to MCP tool schemas and register `tools/list` and `tools/call` handlers before `Start()`.
+  - **Review Criteria:** MCP Client can connect, list tools correctly, and handle graceful shutdown.
+- [ ] **Task 5: Execution Engine & CLI Wrap**
+  - **Description:** Implement `RunShell` in `McpScriptHost` using `CliWrap`. Add process timeouts (kill process tree), execute the mapped logic upon `tools/call`, and return results/errors. Capture STDERR and non-zero exit codes to return as MCP error payloads.
+  - **Review Criteria:** Tools execute successfully, parameters map correctly, timeouts kill processes, and non-zero exit codes return clear errors to the client.
+- [ ] **Task 6: Hot-Reloading (Watcher)**
+  - **Description:** Implement `FileSystemWatcher` for the scripts directory if `--watch` is specified. Debounce events by a constant amount (500ms). Re-run discovery for changed files. If compilation fails, reject update, keep last good state, log loud error. Send `notifications/tools/list_changed` if successful.
+  - **Review Criteria:** Modifying a script updates the tool registry; syntax errors keep the old state; ongoing executions are not aborted.
 
-**Bootstrapping Sequence:**
+## 🛡 Edge Case & Safety Checklist
+- [ ] Target directory missing or unreadable -> Immediate process exit.
+- [ ] Rapid file saves during `--watch` -> Debounced correctly (500ms).
+- [ ] Tool updated while currently executing -> Let current execution finish undisturbed.
+- [ ] Tool update contains compile errors -> Keep last known good state, scream into logs.
+- [ ] CLI command hangs -> Process tree killed after timeout, error returned.
+- [ ] CLI command returns non-zero -> STDERR and exit code surfaced to MCP client as error.
+- [ ] Script throws unhandled exception -> Server remains alive, error returned to MCP client.
+- [ ] Broken script on startup -> Boot process halted entirely.
 
-1. **Start:** Parse arguments.
-2. **Discovery:** Scan the `--scripts` folder and perform a "Discovery Run" on all `.csx` files while still in the original execution directory.
-3. **Hard Switch:** Change the process CWD to the path provided in `--dir`.
-4. **Serve:** Initialize the MCP server (Stdio or http transport, depending on `--ip` and `--port` flags).
+## 📝 Review Log (Mode 1: Plan Review)
+- **Round 1:** Approved (Architect / Initial Draft)
+- **Round 2:** Approved (Librarian enhancements merged)
+- **Round 3:** Rejected by Reviewer (Silent errors on hot-reload/startup and missing non-zero exit code handling).
+- **Round 4:** Fixed and Pending Review.
 
-## 3. Core Architecture & Interfaces
-
-### A. The Script Host (`McpScriptHost.cs`)
-
-The "Globals" object injected into the Roslyn scripting environment. It defines the DSL.
-
-```csharp
-public class McpScriptHost {
-    // Metadata extracted during discovery
-    public string ToolName { get; private set; }
-    public string ToolDescription { get; private set; }
-    public List<McpParameter> Parameters { get; } = new();
-    public Func<Task<string>> ExecutionLogic { get; private set; }
-    public string TargetWorkDir { get; init; }
-
-    // DSL Methods used inside .csx
-    public void Name(string name) => ToolName = name;
-    public void Description(string desc) => ToolDescription = desc;
-    
-    public ParamValue<T> Param<T>(string name, T defaultValue, string description) {
-        var p = new McpParameter(name, typeof(T), defaultValue, description);
-        Parameters.Add(p);
-        return new ParamValue<T>(p); // Wrapper to hold runtime values
-    }
-
-    public void OnExecute(Func<Task<string>> logic) => ExecutionLogic = logic;
-
-    // Shell Abstraction using CliWrap
-    public async Task<ShellResult> RunShell(string cmd, params string[] args) {
-        // Must handle stdout/stderr and return a ShellResult object
-    }
-}
-
-```
-
-### B. Tool Registry & Container
-
-Encapsulates a loaded tool and its compiled state.
-
-```csharp
-public record McpParameter(string Name, Type Type, object DefaultValue, string Description);
-
-public class McpToolContainer {
-    public McpScriptHost Host { get; init; }
-    public Script CompiledScript { get; init; }
-    
-    // Generates the JSON Schema required for the MCP 'tools/list' response
-    public object GetJsonSchema() { ... } 
-}
-
-```
-
-## 4. Technical Phases
-
-### Phase 1: Discovery Engine
-
-* **File Scanning:** Identify all `*.csx` files in the script directory.
-* **Discovery Execution:** Use `CSharpScript.RunAsync(code, globals: host)` to execute the script once.
-* **Validation:** A script is only registered as a tool if `Name()` and `OnExecute()` were successfully called during the discovery run.
-* **Isolation:** If a script fails to compile or run during discovery, catch the exception, log it to `Console.Error`, and skip the file.
-
-### Phase 2: Runtime Execution
-
-* **Mapping:** When a `tools/call` request arrives, locate the `McpToolContainer` by name.
-* **Parameter Injection:** Update the `Value` properties of the `ParamValue<T>` objects inside the host using the arguments provided by the LLM.
-* **Execution:** Invoke the `ExecutionLogic` delegate.
-* **Error Handling:** Catch runtime exceptions. Return them to the MCP client with `isError: true` and include the stack trace for LLM troubleshooting.
-
-### Phase 3: Hot-Reloading (Optional `--watch`)
-
-* **Watcher:** Implement `FileSystemWatcher` on the script directory.
-* **Debouncing:** Use a `System.Threading.Timer` (500ms delay) to prevent multiple triggers from rapid file-saves.
-* **Updates:** On change, re-run the Discovery phase for the specific file. If successful, update the registry and send a `notifications/tools/list_changed` notification to the MCP client.
-
-### Phase 4: CLI Integration
-
-* **CliWrap:** Use `CliWrap` for all shell executions to ensure safety and avoid command injection.
-* **Streaming:** Implement `IProgress<string>` within the tool methods. Use it to send real-time `stdout` lines as MCP progress notifications to the client UI.
-
-## 5. Reference DSL Usage (`cmake.csx`)
-
-```csharp
-Name("cmake_prepare");
-Description("Configures the CMake project.");
-
-var type = Param("config", "Debug", "Build configuration (Debug/Release)");
-
-OnExecute(async () => {
-    var result = await RunShell("cmake", "-B", "build", $"-DCMAKE_BUILD_TYPE={type.Value}");
-    
-    if (result.ExitCode != 0)
-        return $"Config failed: {result.StdErr}";
-        
-    return $"Config successful: {result.StdOut}";
-});
-
-```
-
-## 6. Security & Stability
-
-* **Process Integrity:** Scripts run in-process. Ensure they cannot accidentally terminate the host (e.g., catching `Environment.Exit`).
-* **Timeouts:** Implement a default timeout (e.g., 5-10 minutes) for CLI processes to prevent zombie builds.
-* **Path Safety:** Since the server performs a `SetCurrentDirectory`, ensure all scripts use relative paths to remain within the "sandbox".
+## 🚦 Final Status (Mode 2: Code Review)
+- [Pending Builder Phase]
