@@ -23,22 +23,22 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 ## 🏗 Implementation Steps
 > Status Markers: [ ] Open, [/] In Progress, [x] Completed (By the Reviewer only!)
 
-- [/] **Task 1: Core Domain & Script Context**
+- [x] **Task 1: Core Domain & Script Context**
   - **Description:** Implement `McpScriptHost` (the globals object / context), `McpToolContainer`, and `McpParameter`. These form the Roslyn globals DSL (`Name()`, `Description()`, `Param()`, `OnExecute()`). Ensure `ScriptContext` exposes the required APIs for the orchestrator.
   - **Review Criteria:** Models compile successfully and allow defining all required script metadata cleanly.
-- [/] **Task 2: CLI Bootstrapping & Directory Validation**
+- [x] **Task 2: CLI Bootstrapping & Directory Validation**
   - **Description:** Integrate `System.CommandLine` to parse `--dir`, `--scripts`, and `--watch`. Implement validation to exit immediately if `--dir` is missing/unreadable. Set process CWD.
   - **Review Criteria:** CLI runs, parses arguments correctly, and fails fast if the target directory is invalid.
-- [/] **Task 3: Script Discovery Engine & Orchestrator**
+- [x] **Task 3: Script Discovery Engine & Orchestrator**
   - **Description:** Implement the `ScriptDiscoverer` and `ScriptOrchestrator` to scan the `--scripts` folder. Compile and execute `*.csx` files via `CSharpScript.RunAsync` into a `ScriptState`. Fail loud and halt startup if any script fails to compile.
   - **Review Criteria:** Valid scripts are discovered and transformed into `McpToolContainer`s; invalid scripts halt the boot process.
-- [/] **Task 4: MCP Server Integration**
+- [x] **Task 4: MCP Server Integration**
   - **Description:** Implement the `ModelContextProtocol` server in the orchestrator. Configure Stdio transport. Map `McpToolContainer` metadata to MCP tool schemas and register `tools/list` and `tools/call` handlers before `Start()`.
   - **Review Criteria:** MCP Client can connect, list tools correctly, and handle graceful shutdown.
-- [/] **Task 5: Execution Engine & CLI Wrap**
+- [x] **Task 5: Execution Engine & CLI Wrap**
   - **Description:** Implement `RunShell` in `McpScriptHost` using `CliWrap`. Add process timeouts (kill process tree), execute the mapped logic upon `tools/call`, and return results/errors. Capture STDERR and non-zero exit codes to return as MCP error payloads.
   - **Review Criteria:** Tools execute successfully, parameters map correctly, timeouts kill processes, and non-zero exit codes return clear errors to the client.
-- [/] **Task 6: Hot-Reloading (Watcher)**
+- [x] **Task 6: Hot-Reloading (Watcher)**
   - **Description:** Implement `FileSystemWatcher` for the scripts directory if `--watch` is specified. Debounce events by a constant amount (500ms). Re-run discovery for changed files. If compilation fails, reject update, keep last good state, log loud error. Send `notifications/tools/list_changed` if successful.
   - **Review Criteria:** Modifying a script updates the tool registry; syntax errors keep the old state; ongoing executions are not aborted.
 
@@ -59,4 +59,5 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - **Round 4:** Fixed and Pending Review.
 
 ## 🚦 Final Status (Mode 2: Code Review)
-- [Pending Builder Phase]
+- [✓] APPROVED by Reviewer (All 6 tasks completed and validated)
+- [→] Ready for archival and project map update
