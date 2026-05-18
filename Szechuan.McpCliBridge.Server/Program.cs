@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Server;
 using Szechuan.McpCliBridge.Server.Cli;
 using Szechuan.McpCliBridge.Server.Domain;
 using Szechuan.McpCliBridge.Server.Orchestration;
@@ -42,9 +43,11 @@ builder.Services.AddSingleton(sp =>
 {
     var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
     var orchestrator = sp.GetRequiredService<ScriptOrchestrator>();
+    var server = sp.GetRequiredService<McpServer>();
     return new McpServerManager(
         loggerFactory.CreateLogger<McpServerManager>(),
-        orchestrator);
+        orchestrator,
+        server);
 });
 
 // Register the MCP server with stdio transport

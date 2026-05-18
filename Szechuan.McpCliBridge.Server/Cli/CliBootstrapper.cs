@@ -17,20 +17,21 @@ public class CliBootstrapper
         var dirOption = new Option<DirectoryInfo>("--dir")
         {
             Description = "Target directory where CLI programs are executed",
-            IsRequired = true
+            Required = true
         };
 
         var scriptsOption = new Option<string[]>("--scripts")
         {
             Description = "Patterns for script discovery (e.g., *.csx)",
-            IsRequired = false
+            Required = false,
+            DefaultValueFactory = _ => new[] { "*.csx" },
+            AllowMultipleArgumentsPerToken = true
         };
-        scriptsOption.SetDefaultValue(new[] { "*.csx" });
 
         var watchOption = new Option<bool>("--watch")
         {
             Description = "Enable watch mode for live script reloading",
-            IsRequired = false
+            Required = false
         };
 
         return new RootCommand("MCP CLI Bridge - Dynamic C# Script Server")
@@ -111,7 +112,7 @@ public class CliBootstrapper
     {
         try
         {
-            _ = directory.EnumerateFileSystemEntries().FirstOrDefault();
+            _ = directory.GetFileSystemEntries().FirstOrDefault();
             return true;
         }
         catch (UnauthorizedAccessException)

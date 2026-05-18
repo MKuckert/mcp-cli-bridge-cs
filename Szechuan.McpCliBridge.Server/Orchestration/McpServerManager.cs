@@ -1,142 +1,48 @@
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Szechuan.McpCliBridge.Server.Domain;
+using System.Text.Json;
 
 namespace Szechuan.McpCliBridge.Server.Orchestration;
 
 /// <summary>
-/// Manages MCP server configuration, handler registration, and tool schema mapping.
+/// Manages MCP server configuration and tool schema mapping.
 /// </summary>
 public class McpServerManager
 {
-    private readonly McpServer _server;
     private readonly ILogger<McpServerManager> _logger;
     private readonly ScriptOrchestrator _orchestrator;
+    private readonly McpServer _server;
 
     public McpServerManager(
         ILogger<McpServerManager> logger,
-        ScriptOrchestrator orchestrator)
+        ScriptOrchestrator orchestrator,
+        McpServer server)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
-
-        _server = new McpServer("mcp-cli-bridge");
+        _server = server ?? throw new ArgumentNullException(nameof(server));
     }
 
     /// <summary>
-    /// Registers all tool handlers with the MCP server.
-    /// Must be called before Start().
+    /// Initializes MCP tool handlers registration.
     /// </summary>
     public void RegisterToolHandlers()
     {
         var tools = _orchestrator.GetTools();
-        _logger.LogInformation("Registering {Count} tools with MCP server", tools.Count);
-
-        // Register tools/list handler
-        _server.SetRequestHandler<Tool>(
-            "tools/list",
-            async (request, cancellationToken) =>
-            {
-                _logger.LogDebug("Received tools/list request");
-                var currentTools = _orchestrator.GetTools();
-                var toolList = currentTools.Select(MapToMcpTool).ToList();
-                return new ToolListResult { Tools = toolList };
-            });
-
-        // Register tools/call handler
-        _server.SetRequestHandler<ToolResult>(
-            "tools/call",
-            async (request, cancellationToken) =>
-            {
-                try
-                {
-                    _logger.LogDebug("Received tools/call request for tool: {ToolName}", request.Name);
-
-                    var tool = _orchestrator.GetTools()
-                        .FirstOrDefault(t => t.Name == request.Name);
-
-                    if (tool == null)
-                    {
-                        _logger.LogWarning("Tool not found: {ToolName}", request.Name);
-                        return new ToolResult
-                        {
-                            Content = new List<Content>
-                            {
-                                new TextContent { Text = $"Tool not found: {request.Name}" }
-                            },
-                            IsError = true
-                        };
-                    }
-
-                    // Convert request arguments to dictionary
-                    var args = new Dictionary<string, object?>();
-                    if (request.Arguments is not null)
-                    {
-                        foreach (var kvp in request.Arguments)
-                        {
-                            args[kvp.Key] = kvp.Value;
-                        }
-                    }
-
-                    // Execute the tool
-                    var result = await tool.ExecuteAsync(args);
-
-                    return new ToolResult
-                    {
-                        Content = new List<Content>
-                        {
-                            new TextContent { Text = result }
-                        },
-                        IsError = false
-                    };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Tool execution failed");
-                    return new ToolResult
-                    {
-                        Content = new List<Content>
-                        {
-                            new TextContent { Text = $"Error: {ex.Message}" }
-                        },
-                        IsError = true
-                    };
-                }
-            });
-
-        _logger.LogInformation("Tool handlers registered successfully");
+        _logger.LogInformation("Tool handlers registration initialized with {Count} tools", tools.Count);
     }
 
     /// <summary>
     /// Maps a McpToolContainer to an MCP Tool schema.
     /// </summary>
-    private Tool MapToMcpTool(McpToolContainer container)
-    {
-        var inputSchema = new Dictionary<string, object>
-        {
-            { "type", "object" },
-            { "properties", BuildPropertySchema(container.Parameters) },
-            { "required", container.Parameters.Where(p => p.Required).Select(p => p.Name).ToList() }
-        };
-
-        return new Tool
-        {
-            Name = container.Name,
-            Description = container.Description,
-            InputSchema = inputSchema
-        };
-    }
-
-    /// <summary>
-    /// Builds the JSON Schema properties for tool parameters.
-    /// </summary>
-    private Dictionary<string, object> BuildPropertySchema(List<McpParameter> parameters)
+    public Tool MapToMcpTool(McpToolContainer container)
     {
         var properties = new Dictionary<string, object>();
-
-        foreach (var param in parameters)
+        foreach (var param in container.Parameters)
         {
-            properties[param.Name] = new Dictionary<string, object>
+            var propSchema = new Dictionary<string, object>
             {
                 { "type", MapDotNetTypeToJsonSchemaType(param.Type) },
                 { "description", param.Description }
@@ -144,11 +50,46 @@ public class McpServerManager
 
             if (param.DefaultValue != null)
             {
-                properties[param.Name]["default"] = param.DefaultValue;
+                propSchema["default"] = param.DefaultValue;
             }
+
+            properties[param.Name] = propSchema;
         }
 
-        return properties;
+        var inputSchema = new Dictionary<string, object>
+        {
+            { "type", "object" },
+            { "properties", properties },
+            { "required", container.Parameters.Where(p => p.Required).Select(p => p.Name).ToList() }
+        };
+
+        // Convert dictionary to JsonElement
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var jsonString = JsonSerializer.Serialize(inputSchema, jsonOptions);
+        var jsonElement = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+        return new Tool
+        {
+            Name = container.Name,
+            Description = container.Description,
+            InputSchema = jsonElement
+        };
+    }
+
+    /// <summary>
+    /// Gets all available tools from the orchestrator.
+    /// </summary>
+    public IReadOnlyList<McpToolContainer> GetTools()
+    {
+        return _orchestrator.GetTools();
+    }
+
+    /// <summary>
+    /// Finds a tool by name.
+    /// </summary>
+    public McpToolContainer? FindTool(string name)
+    {
+        return _orchestrator.GetTools().FirstOrDefault(t => t.Name == name);
     }
 
     /// <summary>
@@ -170,14 +111,6 @@ public class McpServerManager
     }
 
     /// <summary>
-    /// Gets the underlying MCP server instance.
-    /// </summary>
-    public McpServer GetServer()
-    {
-        return _server;
-    }
-
-    /// <summary>
     /// Notifies the MCP client that the tool list has changed.
     /// </summary>
     public async Task NotifyToolsListChangedAsync()
@@ -185,10 +118,11 @@ public class McpServerManager
         try
         {
             _logger.LogInformation("Notifying clients of tool list change");
-            await _server.NotifyAsync("tools/list_changed");
+            await _server.SendNotificationAsync("tools/list_changed", null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to notify tool list change");
         }
     }
+}
