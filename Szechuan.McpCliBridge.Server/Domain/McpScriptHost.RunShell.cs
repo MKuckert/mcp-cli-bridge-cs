@@ -1,5 +1,6 @@
 using CliWrap;
 using CliWrap.EventStream;
+using Microsoft.Extensions.Logging;
 
 namespace Szechuan.McpCliBridge.Server.Domain;
 
@@ -67,7 +68,7 @@ public partial class McpScriptHost
                 ? ("cmd.exe", new[] { "/c", command })
                 : ("/bin/sh", new[] { "-c", command });
 
-            var result = await Cli.Wrap(shell)
+            var result = await CliWrap.Cli.Wrap(shell)
                 .WithArguments(args)
                 .WithStandardOutputPipe(PipeTarget.ToDelegate(line => stdoutBuffer.Add(line)))
                 .WithStandardErrorPipe(PipeTarget.ToDelegate(line => stderrBuffer.Add(line)))

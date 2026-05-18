@@ -112,7 +112,7 @@ public class CliBootstrapper
     {
         try
         {
-            _ = directory.GetFileSystemEntries().FirstOrDefault();
+            _ = Directory.GetFileSystemEntries(directory.FullName).FirstOrDefault();
             return true;
         }
         catch (UnauthorizedAccessException)

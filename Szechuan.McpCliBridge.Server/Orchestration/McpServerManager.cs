@@ -118,7 +118,7 @@ public class McpServerManager
         try
         {
             _logger.LogInformation("Notifying clients of tool list change");
-            await _server.SendNotificationAsync("tools/list_changed", null);
+            await _server.SendNotificationAsync("tools/list_changed", null, cancellationToken: CancellationToken.None);
         }
         catch (Exception ex)
         {
