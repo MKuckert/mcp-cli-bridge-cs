@@ -26,7 +26,7 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - [/] **Task 1: Core Domain & Script Context**
   - **Description:** Implement `McpScriptHost` (the globals object / context), `McpToolContainer`, and `McpParameter`. These form the Roslyn globals DSL (`Name()`, `Description()`, `Param()`, `OnExecute()`). Ensure `ScriptContext` exposes the required APIs for the orchestrator.
   - **Review Criteria:** Models compile successfully and allow defining all required script metadata cleanly.
-- [ ] **Task 2: CLI Bootstrapping & Directory Validation**
+- [/] **Task 2: CLI Bootstrapping & Directory Validation**
   - **Description:** Integrate `System.CommandLine` to parse `--dir`, `--scripts`, and `--watch`. Implement validation to exit immediately if `--dir` is missing/unreadable. Set process CWD.
   - **Review Criteria:** CLI runs, parses arguments correctly, and fails fast if the target directory is invalid.
 - [ ] **Task 3: Script Discovery Engine & Orchestrator**
