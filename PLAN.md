@@ -29,7 +29,7 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - [/] **Task 2: CLI Bootstrapping & Directory Validation**
   - **Description:** Integrate `System.CommandLine` to parse `--dir`, `--scripts`, and `--watch`. Implement validation to exit immediately if `--dir` is missing/unreadable. Set process CWD.
   - **Review Criteria:** CLI runs, parses arguments correctly, and fails fast if the target directory is invalid.
-- [ ] **Task 3: Script Discovery Engine & Orchestrator**
+- [/] **Task 3: Script Discovery Engine & Orchestrator**
   - **Description:** Implement the `ScriptDiscoverer` and `ScriptOrchestrator` to scan the `--scripts` folder. Compile and execute `*.csx` files via `CSharpScript.RunAsync` into a `ScriptState`. Fail loud and halt startup if any script fails to compile.
   - **Review Criteria:** Valid scripts are discovered and transformed into `McpToolContainer`s; invalid scripts halt the boot process.
 - [ ] **Task 4: MCP Server Integration**
