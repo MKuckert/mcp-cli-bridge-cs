@@ -32,7 +32,7 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - [/] **Task 3: Script Discovery Engine & Orchestrator**
   - **Description:** Implement the `ScriptDiscoverer` and `ScriptOrchestrator` to scan the `--scripts` folder. Compile and execute `*.csx` files via `CSharpScript.RunAsync` into a `ScriptState`. Fail loud and halt startup if any script fails to compile.
   - **Review Criteria:** Valid scripts are discovered and transformed into `McpToolContainer`s; invalid scripts halt the boot process.
-- [ ] **Task 4: MCP Server Integration**
+- [/] **Task 4: MCP Server Integration**
   - **Description:** Implement the `ModelContextProtocol` server in the orchestrator. Configure Stdio transport. Map `McpToolContainer` metadata to MCP tool schemas and register `tools/list` and `tools/call` handlers before `Start()`.
   - **Review Criteria:** MCP Client can connect, list tools correctly, and handle graceful shutdown.
 - [ ] **Task 5: Execution Engine & CLI Wrap**
