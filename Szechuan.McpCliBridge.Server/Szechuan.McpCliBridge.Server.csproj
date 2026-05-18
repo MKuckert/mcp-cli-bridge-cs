@@ -8,7 +8,7 @@
     <!-- Set up the NuGet package to be an MCP server -->
     <PackAsTool>true</PackAsTool>
     <PackageType>McpServer</PackageType>
-    <LangVersion>10.0</LangVersion>
+    <LangVersion>12.0</LangVersion>
 
     <!-- Set up the MCP server to be a self-contained application that does not rely on a shared framework -->
     <SelfContained>true</SelfContained>
@@ -37,6 +37,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.24324.01" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0" />
   </ItemGroup>
 </Project>
