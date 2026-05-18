@@ -35,7 +35,7 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - [/] **Task 4: MCP Server Integration**
   - **Description:** Implement the `ModelContextProtocol` server in the orchestrator. Configure Stdio transport. Map `McpToolContainer` metadata to MCP tool schemas and register `tools/list` and `tools/call` handlers before `Start()`.
   - **Review Criteria:** MCP Client can connect, list tools correctly, and handle graceful shutdown.
-- [ ] **Task 5: Execution Engine & CLI Wrap**
+- [/] **Task 5: Execution Engine & CLI Wrap**
   - **Description:** Implement `RunShell` in `McpScriptHost` using `CliWrap`. Add process timeouts (kill process tree), execute the mapped logic upon `tools/call`, and return results/errors. Capture STDERR and non-zero exit codes to return as MCP error payloads.
   - **Review Criteria:** Tools execute successfully, parameters map correctly, timeouts kill processes, and non-zero exit codes return clear errors to the client.
 - [ ] **Task 6: Hot-Reloading (Watcher)**

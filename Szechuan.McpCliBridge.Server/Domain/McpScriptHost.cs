@@ -1,10 +1,12 @@
+using Microsoft.Extensions.Logging;
+
 namespace Szechuan.McpCliBridge.Server.Domain;
 
 /// <summary>
 /// The global host object exposed to C# scripts.
 /// Provides the DSL for defining tools and executing shell commands.
 /// </summary>
-public class McpScriptHost
+public partial class McpScriptHost
 {
     private string? _currentToolName;
     private string? _currentToolDescription;
@@ -90,13 +92,5 @@ public class McpScriptHost
         _currentToolDescription = null;
         _currentToolParameters = null;
         _currentToolExecute = null;
-    }
-
-    /// <summary>
-    /// Executes a shell command with the given command line and optional timeout.
-    /// </summary>
-    public async Task<string> RunShell(string command, int timeoutMs = 30000)
-    {
-        throw new NotImplementedException("RunShell will be implemented in Task 5");
     }
 }
