@@ -38,7 +38,7 @@ Create an MCP (Model Context Protocol) server that dynamically loads C# scripts 
 - [/] **Task 5: Execution Engine & CLI Wrap**
   - **Description:** Implement `RunShell` in `McpScriptHost` using `CliWrap`. Add process timeouts (kill process tree), execute the mapped logic upon `tools/call`, and return results/errors. Capture STDERR and non-zero exit codes to return as MCP error payloads.
   - **Review Criteria:** Tools execute successfully, parameters map correctly, timeouts kill processes, and non-zero exit codes return clear errors to the client.
-- [ ] **Task 6: Hot-Reloading (Watcher)**
+- [/] **Task 6: Hot-Reloading (Watcher)**
   - **Description:** Implement `FileSystemWatcher` for the scripts directory if `--watch` is specified. Debounce events by a constant amount (500ms). Re-run discovery for changed files. If compilation fails, reject update, keep last good state, log loud error. Send `notifications/tools/list_changed` if successful.
   - **Review Criteria:** Modifying a script updates the tool registry; syntax errors keep the old state; ongoing executions are not aborted.
 

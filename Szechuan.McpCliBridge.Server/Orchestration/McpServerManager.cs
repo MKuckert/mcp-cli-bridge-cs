@@ -176,4 +176,19 @@ public class McpServerManager
     {
         return _server;
     }
-}
+
+    /// <summary>
+    /// Notifies the MCP client that the tool list has changed.
+    /// </summary>
+    public async Task NotifyToolsListChangedAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Notifying clients of tool list change");
+            await _server.NotifyAsync("tools/list_changed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to notify tool list change");
+        }
+    }
