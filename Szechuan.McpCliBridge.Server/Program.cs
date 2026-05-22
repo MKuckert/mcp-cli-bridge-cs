@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using ModelContextProtocol.Server;
 using Szechuan.McpCliBridge.Server.Cli;
 using Szechuan.McpCliBridge.Server.Domain;

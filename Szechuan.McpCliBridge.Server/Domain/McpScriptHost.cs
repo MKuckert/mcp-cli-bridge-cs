@@ -32,22 +32,24 @@ public partial class McpScriptHost
     /// <summary>
     /// Adds a parameter to the current tool being defined.
     /// </summary>
-    public void Param(
+    public McpParameter Param(
         string name,
         string description,
         string type = "string",
         bool required = false,
         object? defaultValue = null)
     {
-        _currentToolParameters ??= [];
-        _currentToolParameters.Add(new McpParameter
+        var param = new McpParameter
         {
             Name = name,
             Description = description,
             Type = type,
             Required = required,
             DefaultValue = defaultValue
-        });
+        };
+        _currentToolParameters ??= [];
+        _currentToolParameters.Add(param);
+        return param;
     }
 
     /// <summary>

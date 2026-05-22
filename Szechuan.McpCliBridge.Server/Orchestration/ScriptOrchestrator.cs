@@ -57,13 +57,15 @@ public class ScriptOrchestrator
             _logger.LogInformation("Loading script: {Script}", scriptFile.Name);
 
             // Create script state with globals
+            var contextType = typeof(ScriptContext);
             var options = ScriptOptions.Default
-                .WithReferences(typeof(object).Assembly)
+                .WithReferences(typeof(object).Assembly, contextType.Assembly)
                 .WithImports(
                     "System",
                     "System.Collections.Generic",
                     "System.Threading.Tasks",
-                    "Szechuan.McpCliBridge.Server.Domain");
+                    contextType.Namespace!
+                );
 
             lock (_stateLock)
             {
@@ -88,11 +90,14 @@ public class ScriptOrchestrator
         }
         catch (CompilationErrorException ex)
         {
-            _logger.LogCritical(ex, "FATAL: Script compilation failed: {Script}", scriptFile.Name);
-            foreach (var diagnostic in ex.Diagnostics)
-            {
-                _logger.LogCritical("  {Message}", diagnostic.GetMessage());
-            }
+            var diagnostics = string.Join(Environment.NewLine,
+                ex.Diagnostics.Select(d =>
+                {
+                    var line = d.Location.GetLineSpan().StartLinePosition.Line + 1;
+                    return $"  at line {line}: {d.GetMessage()}";
+                }));
+
+            _logger.LogCritical(ex, "FATAL: Script compilation failed: {Script}\n{Diagnostics}", scriptFile.Name, diagnostics);
             throw;
         }
         catch (Exception ex)
